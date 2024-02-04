@@ -1,9 +1,14 @@
-INSTALL_TARGET_PROCESSES = SpringBoard
+export ARCHS = arm64 arm64e
+GO_EASY_ON_ME = 1
+PACKAGE_VERSION = 1.0
+
+TARGET = iphone:clang:14.2
+THEOS_LAYOUT_DIR_NAME = layout-rootless
+THEOS_PACKAGE_SCHEME = rootless
+
+export SYSROOT = $(THEOS)/sdks/iPhoneOS14.2.sdk
 
 include $(THEOS)/makefiles/common.mk
-
-export TARGET = iphone:clang:latest:11.0
-export ARCHS = arm64 arm64e
 
 TWEAK_NAME = FolderList
 

@@ -7,6 +7,5 @@
 @property (nonatomic, strong) UIView *badgeView;
 @property (nonatomic, strong) UILabel *badgeTextLabel;
 @property (nonatomic, strong) UITapGestureRecognizer *appLaunchRecognizer;
--(void)setupBadgeView:(NSString *)badgeText;
--(void)removeBadgeView;
+- (void)setupBadgeView:(NSString *)badgeText;
 @end

@@ -1,9 +1,10 @@
 Package: com.shepgoba.folderlist
 Name: FolderList
-Depends: mobilesubstrate
+Depends: mobilesubstrate, preferenceloader, firmware(>=14.0)
 Version: 1.0
 Architecture: iphoneos-arm
-Description: Show a list of all the applications in a folder (like watchOS)
+Description: Show a list of all the applications in a folder (like watchOS).
+Conflicts: com.twickd.sirius24.folderplus, xyz.burritoz.thomz.folded, com.yourepo.i0s-tweak3r-betas.foldercontroller14, ca.ndoizo.bolders, com.4nni3.coolfolder, com.lizynz.foldercolor, com.ginsu.4ders, com.iadam1n.statusfolder, com.nightwind.dockapplibrary, com.tomaszpoliszuk.dockcontroller, com.lizynz.folderx, com.lizynz.folderx.rootless, com.nightwind.boldersreborn
 Maintainer: shepgoba
 Author: shepgoba
 Section: Tweaks

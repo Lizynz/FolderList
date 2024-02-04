@@ -14,31 +14,23 @@
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<true/>
-			<key>defaults</key>
-			<string>com.shepgoba.folderlistprefs</string>
-			<key>key</key>
-			<string>enabled</string>
-			<key>label</key>
-			<string>Enable</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Customization</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<true/>
+			<false/>
 			<key>defaults</key>
 			<string>com.shepgoba.folderlistprefs</string>
 			<key>key</key>
 			<string>replaceoriginalview</string>
 			<key>label</key>
 			<string>Replace Original View</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Customization</string>
+			<key>footerAlignment</key>
+                        <integer>1</integer>
+			<key>footerText</key>
+			<string>Swiping up and down shows and hides icons in the folder.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -50,7 +42,41 @@
 			<key>key</key>
 			<string>notificationBadgesEnabled</string>
 			<key>label</key>
-			<string>Enable Notification Badges</string>
+			<string>Notification Badges</string>
+		</dict>
+		<dict>
+			<key>cellClass</key>
+			<string>SizeStepperCell</string>
+			<key>default</key>
+			<real>350</real>
+			<key>defaults</key>
+			<string>com.shepgoba.folderlistprefs</string>
+			<key>key</key>
+			<string>FolderSize</string>
+			<key>id</key>
+			<string>FolderSize</string>
+			<key>label</key>
+			<string>Folder Size:</string>
+			<key>max</key>
+			<real>550</real>
+			<key>min</key>
+			<real>350</real>
+			<key>height</key>
+			<string>40</string>
+			<key>PostNotification</key>
+			<string>com.shepgoba.folderlistprefs</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.shepgoba.folderlistprefs</string>
+			<key>key</key>
+			<string>Milk</string>
+			<key>label</key>
+			<string>Modify Background View</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -72,14 +98,12 @@
 				<integer>0</integer>
 				<integer>1</integer>
 				<integer>2</integer>
-				<integer>3</integer>
 			</array>
 			<key>validTitles</key>
 			<array>
 				<string>Original</string>
 				<string>A-Z</string>
 				<string>Z-A</string>
-				<string>Disk Usage</string>
 			</array>
 		</dict>
 		<dict>
@@ -90,7 +114,15 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>@shepgoba</string>
+			<string>@Lizynz1 ~ 14 - 17</string>
+			<key>action</key>
+			<string>openX</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>@shepgoba ~ 12 - 13</string>
 			<key>action</key>
 			<string>openTwitter</string>
 		</dict>
