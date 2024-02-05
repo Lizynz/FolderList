@@ -140,7 +140,6 @@ static UITableView *sharedTableView;
 - (void)requestUninstallApplication:(id)arg0 options:(NSUInteger)arg1 withCompletion:(id)arg2;
 - (void)requestUninstallApplicationWithBundleIdentifier:(id)arg0 options:(NSUInteger)arg1 withCompletion:(id)arg2;
 - (void)uninstallApplication:(id)arg1 ;
-
 @end
 
 @interface SBFloatyFolderView : SBFolderView
@@ -155,15 +154,6 @@ int sortType = 0;
 static CGFloat folderSize;
 
 %hook SBFloatyFolderView
-//- (NSUInteger)pageCount {//Hide Pages
-//    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
-//    if ([[prefs objectForKey:@"replaceoriginalview"] boolValue]) {
-//        return 0;
-//    } else {
-//        return %orig;
-//    }
-//}
-
 - (CGRect)_frameForScalingView { //Folder Size
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
     if ([[prefs objectForKey:@"replaceoriginalview"] boolValue]) {
@@ -221,7 +211,6 @@ static CGFloat folderSize;
     return %orig;
 }
 %end
-//End
 
 %hook SBFolderBackgroundView
 - (void)layoutSubviews {
@@ -352,13 +341,14 @@ static BOOL ios15 = YES;
     if ([[prefs objectForKey:@"replaceoriginalview"] boolValue]) {
         self.customListView = self.iconListViews.firstObject;
         
-        if (ios15)
+        if (ios15) {
             [self.customListView hideAllIcons]; // Hide Icons
-        self.pageControl.hidden = 1; //Hide Page Dots
-        [self.customListView setAlphaForAllIcons:0.0]; // Clear Icons
-        ((UIScrollView *)self.customListView.superview).scrollEnabled = NO;
-        [self setupAppList];
-        [self setupIconEntries];
+            self.pageControl.hidden = 1; // Hide Page Dots
+            [self.customListView setAlphaForAllIcons:0.0]; // Clear Icons
+            ((UIScrollView *)self.customListView.superview).scrollEnabled = NO; // Scrolling
+            [self setupAppList];
+            [self setupIconEntries];
+        }
         
 //        NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
 //        if ([[prefs objectForKey:@"unistall"] boolValue]) {
@@ -376,48 +366,56 @@ static BOOL ios15 = YES;
         swipeDown.direction = UISwipeGestureRecognizerDirectionDown;
         [self.view addGestureRecognizer:swipeDown];
         
+        //Add Animation
+        self.customListView.transform = CGAffineTransformMakeScale(0.9, 0.9);
+        [self.view addSubview:self.appListTableView];
+
+        [UIView animateWithDuration:0.5 animations:^{
+            self.customListView.transform = CGAffineTransformIdentity;
+        }];
+        //
+        
         [self.appListTableView registerClass:[FLTableViewCell class] forCellReuseIdentifier: self.cellReuseIdentifier];
         [self.customListView addSubview: self.appListTableView];
     }
 }
 
-- (void)setEditing:(BOOL)arg1 animated:(BOOL)arg2 {
+- (void)setEditing:(BOOL)arg1 animated:(BOOL)arg2 { // If edit mode is enabled
     %orig;
     if ([self isKindOfClass:NSClassFromString(@"SBFolderController")] || [self isKindOfClass:NSClassFromString(@"SBFloatyFolderController")]) {
         NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
         if ([[prefs objectForKey:@"replaceoriginalview"] boolValue]) {
             if ([self respondsToSelector:@selector(isOpen)]) {
-                if (arg1) { // If edit mode is enabled
-                    [self setValue:@NO forKey:@"open"]; // No Open Folder
-                    [self.customListView setAlphaForAllIcons:1.0]; // Clear Icons
-                    ((UIScrollView *)self.customListView.superview).scrollEnabled = YES;
+                if (arg1) {
+                    [self setValue:@YES forKey:@"open"]; // Open Folder
+                    [self.customListView setAlphaForAllIcons:1.0]; // Visible Icons
+                    ((UIScrollView *)self.customListView.superview).scrollEnabled = YES; // Scrolling
                 } else {
                     [self setValue:@YES forKey:@"open"]; // Open Folder
+                    ((UIScrollView *)self.customListView.superview).scrollEnabled = NO; // Scrolling
                 }
             }
         }
     }
 }
 
-//Start
 %new
 - (void)handleSwipeUp:(UISwipeGestureRecognizer *)gestureRecognizer {
     if (gestureRecognizer.state == UIGestureRecognizerStateRecognized) {
-        [self.customListView showAllIcons];
-        self.pageControl.hidden = 0;
-        ((UIScrollView *)self.customListView.superview).scrollEnabled = YES;
+        [self.customListView showAllIcons]; // Visible Icons
+        self.pageControl.hidden = 0; // Visible Page Dots
+        ((UIScrollView *)self.customListView.superview).scrollEnabled = YES; // Scrolling
     }
 }
 
 %new
 - (void)handleSwipeDown:(UISwipeGestureRecognizer *)gestureRecognizer {
     if (gestureRecognizer.state == UIGestureRecognizerStateRecognized) {
-        [self.customListView hideAllIcons];
-        self.pageControl.hidden = 1;
-        ((UIScrollView *)self.customListView.superview).scrollEnabled = NO;
+        [self.customListView hideAllIcons]; // Hide Icons
+        self.pageControl.hidden = 1; // Hide Page Dots
+        ((UIScrollView *)self.customListView.superview).scrollEnabled = NO; // Scrolling
     }
 }
-//END
 
 - (void)setFolder:(SBFolder *)arg1 {
     %orig;
@@ -549,7 +547,7 @@ static BOOL ios15 = YES;
         });
     });
     
-    if (@available(iOS 15, *)) {
+    if (@available(iOS 14, *)) {
         if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
             cell.backgroundColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha: 0.4];
         } else {
@@ -658,7 +656,6 @@ static BOOL ios15 = YES;
     double cornerRadius = MSHookIvar<double>(folderBackgroundClipView.backgroundView, "_continuousCornerRadius");
     self.appListTableView.layer.cornerRadius = cornerRadius;
     self.appListTableView.scrollIndicatorInsets = UIEdgeInsetsMake(cornerRadius, 0, cornerRadius, 0);
-
 }
 
 %new
