@@ -1,6 +1,6 @@
-include $(THEOS)/makefiles/common.mk
+export ARCHS = arm64 arm64e
 
-export TARGET = iphone:clang:11.2:11.0
+include $(THEOS)/makefiles/common.mk
 
 BUNDLE_NAME = folderlistprefs
 
