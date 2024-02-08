@@ -1,5 +1,5 @@
-#import "FLTableViewCell.h"
-#import "FLIconEntry.h"
+#import "FXCollectionViewCell.h"
+#import "FXIcon.h"
 #import <UIKit/UIKit.h>
 #import <CoreGraphics/CoreGraphics.h>
 #import <MobileCoreServices/MobileCoreServices.h>
@@ -99,9 +99,9 @@
 @interface SBIconListPageControl : UIView
 @end
 
-@interface SBFolderController : UIViewController <UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate>
+@interface SBFolderController : UIViewController <UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UIGestureRecognizerDelegate>
 @property (nonatomic, readonly) SBFolderView *folderView;
-@property (nonatomic, strong) UITableView *appListTableView;
+@property (nonatomic, strong) UICollectionView *collectionView;
 @property (nonatomic, strong) NSString *cellReuseIdentifier;
 @property (nonatomic, strong) SBFolder *folder;
 @property (nonatomic, strong) NSArray *icons;
@@ -111,24 +111,26 @@
 @property (nonatomic, strong) UIScrollView *appListScrollView;
 @property (nonatomic, strong) NSMutableArray *iconEntries;
 @property (nonatomic, assign) BOOL hasAddedCustomView;
-@property (nonatomic, getter=isOpen) BOOL open;
+@property (nonatomic, assign) int numberOfItem;
+@property (nonatomic, strong) UILongPressGestureRecognizer *longPressGestureRecognizer;
+- (NSManagedObjectContext *)managedObjectContext;
 - (void)setupAppList;
 - (id)addEmptyListView;
-- (void)deselectAllRows;
+- (void)deselectAllItems;
 - (void)setupIconEntries;
 - (void)uninstallApplication:(SBApplication *)application;
 @end
 
 @interface SBIconListModel : NSObject
 @property (nonatomic,weak,readonly) SBFolder * folder;
-- (id)initWithFolder:(id)arg1 maxIconCount:(unsigned long long)arg2;
+-(id)initWithFolder:(id)arg1 maxIconCount:(unsigned long long)arg2;
 @end
 
 @interface SBApplicationController : NSObject
-+ (id)sharedInstanceIfExists;
-- (void)requestUninstallApplication:(id)arg0 options:(NSUInteger)arg1 withCompletion:(id)arg2;
-- (void)requestUninstallApplicationWithBundleIdentifier:(id)arg0 options:(NSUInteger)arg1 withCompletion:(id)arg2;
-- (void)uninstallApplication:(id)arg1 ;
++(id)sharedInstanceIfExists;
+-(void)requestUninstallApplication:(id)arg0 options:(NSUInteger)arg1 withCompletion:(id)arg2;
+-(void)requestUninstallApplicationWithBundleIdentifier:(id)arg0 options:(NSUInteger)arg1 withCompletion:(id)arg2;
+-(void)uninstallApplication:(id)arg1 ;
 @end
 
 @interface SBFloatyFolderView : SBFolderView
@@ -201,6 +203,12 @@ static CGFloat folderSize;
 }
 %end
 
+%hook SBHFloatyFolderVisualConfiguration
+- (CGFloat)continuousCornerRadius {
+    return 15.0f;
+}
+%end
+
 %hook SBFolderBackgroundView
 - (void)layoutSubviews {
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
@@ -210,6 +218,10 @@ static CGFloat folderSize;
         }
     }
     return %orig;
+}
+
++ (double)cornerRadiusToInsetContent {
+    return 15.0f;
 }
 
 - (id)initWithFrame:(CGRect)frame {
@@ -229,7 +241,7 @@ static CGFloat folderSize;
             blurView.alpha = 0.2;
             
             blurView.layer.masksToBounds = YES;
-            blurView.layer.cornerRadius = [%c(SBFolderBackgroundView) cornerRadiusToInsetContent];
+            blurView.layer.cornerRadius = 15.0f;
             
             CGRect newFrame = blurView.frame;
             newFrame.size = [%c(SBFolderBackgroundView) folderBackgroundSize];
@@ -249,7 +261,7 @@ static CGFloat folderSize;
                 blurView.alpha = 0.2;
                 
                 blurView.layer.masksToBounds = YES;
-                blurView.layer.cornerRadius = [%c(SBFolderBackgroundView) cornerRadiusToInsetContent];
+                blurView.layer.cornerRadius = 15.0f;
                 
                 CGRect newFrame = blurView.frame;
                 newFrame.size = [%c(SBFolderBackgroundView) folderBackgroundSize];
@@ -313,19 +325,19 @@ static BOOL ios15 = YES;
 
 %hook SBFolderController
 %property (nonatomic, strong) NSArray *icons;
-%property (nonatomic, strong) UITableView *appListTableView;
+%property (nonatomic, strong) UICollectionView *collectionView;
 %property (nonatomic, strong) SBIconListView *customListView;
 %property (nonatomic, strong) NSString *cellReuseIdentifier;
 %property (nonatomic, strong) NSMutableArray *iconEntries;
 %property (nonatomic, assign) BOOL hasAddedCustomView;
 
-- (void)viewDidLoad {
+-(void)viewDidLoad {
     %orig;
     if ((![self isMemberOfClass:%c(SBFolderController)] && ![self isMemberOfClass:%c(SBFloatyFolderController)]) || [self isKindOfClass:%c(SBRootFolderController)]) {
         return;
     }
-
-    self.cellReuseIdentifier = @"FLCells";
+    
+    self.cellReuseIdentifier = @"FXCells";
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
     if ([[prefs objectForKey:@"replaceoriginalview"] boolValue]) {
         self.customListView = self.iconListViews.firstObject;
@@ -344,7 +356,7 @@ static BOOL ios15 = YES;
 //            UISwipeGestureRecognizer *swipe = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
 //            swipe.direction = UISwipeGestureRecognizerDirectionLeft; //seconds
 //            swipe.delegate = self;
-//            [self.appListTableView addGestureRecognizer:swipe];
+//            [self.collectionView addGestureRecognizer:swipe];
 //        }
         
         UISwipeGestureRecognizer *swipeUp = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipeUp:)];
@@ -357,15 +369,15 @@ static BOOL ios15 = YES;
         
         //Add Animation
         self.customListView.transform = CGAffineTransformMakeScale(0.9, 0.9);
-        [self.view addSubview:self.appListTableView];
-
+        [self.view addSubview:self.collectionView];
+        
         [UIView animateWithDuration:0.5 animations:^{
             self.customListView.transform = CGAffineTransformIdentity;
         }];
         //
         
-        [self.appListTableView registerClass:[FLTableViewCell class] forCellReuseIdentifier: self.cellReuseIdentifier];
-        [self.customListView addSubview: self.appListTableView];
+        [self.collectionView registerClass:[FXCollectionViewCell class] forCellWithReuseIdentifier: self.cellReuseIdentifier];
+        [self.customListView addSubview: self.collectionView];
     }
 }
 
@@ -408,9 +420,11 @@ static BOOL ios15 = YES;
 
 - (void)setFolder:(SBFolder *)arg1 {
     %orig;
+
     if (![self isMemberOfClass:%c(SBFolderController)] && ![self isMemberOfClass:%c(SBFloatyFolderController)]) {
         return;
     }
+
     if (ios15) {
         self.icons = [arg1.icons copy];
     } else {
@@ -423,20 +437,20 @@ static BOOL ios15 = YES;
     if (![self isMemberOfClass:%c(SBFolderController)] && ![self isMemberOfClass:%c(SBFloatyFolderController)]) {
         return;
     }
-    [self.appListTableView reloadData];
+    [self.collectionView reloadData];
 }
 
 %new
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    [self.appListTableView deselectRowAtIndexPath:indexPath animated:YES];
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
+    [collectionView deselectItemAtIndexPath:indexPath animated:YES];
     SBActivationSettings *customSettings = [[%c(SBActivationSettings) alloc] init];
     [customSettings setFlag:1 forActivationSetting:2];
-
+    
     [self dismissViewControllerAnimated:YES completion:^{
-    [[UIApplication sharedApplication] launchApplicationWithIdentifier:[[self.icons[indexPath.section] application] bundleIdentifier] suspended:NO];
+        [[UIApplication sharedApplication] launchApplicationWithIdentifier:[[self.iconEntries[indexPath.item] application] bundleIdentifier] suspended:NO];
     }];
     
-    SBBookmarkIcon *selectedIcon = self.icons[indexPath.section];
+    SBBookmarkIcon *selectedIcon = self.icons[indexPath.item];
     if ([selectedIcon isBookmarkIcon]) {
         NSString *pageURLString = [NSString stringWithFormat:@"%@", [[selectedIcon webClip] pageURL]];
         if (pageURLString) {
@@ -454,47 +468,46 @@ static BOOL ios15 = YES;
 }
 
 %new
-- (void)setupIconEntries {
+-(void)setupIconEntries {
     self.iconEntries = [[NSMutableArray alloc] init];
     for (SBApplicationIcon *icon in self.icons) {
-        FLIconEntry *newEntry = [[FLIconEntry alloc] initWithApplication:icon.application];
+        FXIcon *newEntry = [[FXIcon alloc] initWithApplication:icon.application];
         [self.iconEntries addObject: newEntry];
     }
 }
 
 %new
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return self.icons.count;
-}
-
-%new
-- (void)deselectAllRows {
-    for (NSIndexPath *indexPath in self.appListTableView.indexPathsForSelectedRows) {
-        [self.appListTableView deselectRowAtIndexPath:indexPath animated:YES];
-    }
-}
-
-%new
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+- (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView {
     return 1;
 }
 
 %new
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    FLTableViewCell *cell = [self.appListTableView dequeueReusableCellWithIdentifier:self.cellReuseIdentifier forIndexPath:indexPath];
-    FLIconEntry *entry = self.iconEntries[indexPath.section];
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
+    return self.icons.count;
+}
+
+- (void)deselectAllItems {
+    for (NSIndexPath *indexPath in self.collectionView.indexPathsForSelectedItems) {
+        [self.collectionView deselectItemAtIndexPath:indexPath animated:YES];
+    }
+}
+
+%new
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
+    FXCollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:self.cellReuseIdentifier forIndexPath:indexPath];
+    FXIcon *entry = self.iconEntries[indexPath.item];
 
     cell.entry = entry;
     cell.textLabel.text = entry.application.displayName;
     cell.textLabel.backgroundColor = [UIColor clearColor];
     
-    SBBookmarkIcon *selectedIcon = self.icons[indexPath.section];
+    SBBookmarkIcon *selectedIcon = self.icons[indexPath.item];
     if ([selectedIcon isBookmarkIcon]) {
         cell.textLabel.text = selectedIcon.displayName;
     }
 
     UIView *newView = [[UIView alloc] initWithFrame:cell.frame];
-    newView.backgroundColor = [UIColor colorWithRed:0.3 green:0.3 blue:0.3 alpha:0.75];
+    newView.backgroundColor = [UIColor clearColor];
     newView.layer.cornerRadius = 16;
     cell.selectedBackgroundView = newView;
 
@@ -511,7 +524,7 @@ static BOOL ios15 = YES;
             cellImage = [UIImage _applicationIconImageForBundleIdentifier:application.bundleIdentifier format:10 scale:[UIScreen mainScreen].scale];
         }
             
-        SBBookmarkIcon *selectedIcon = self.icons[indexPath.section];
+        SBBookmarkIcon *selectedIcon = self.icons[indexPath.item];
         if ([selectedIcon isBookmarkIcon]) {
             UIImage *iconImage = [[selectedIcon webClip] iconImage];
             if (iconImage) {
@@ -520,14 +533,14 @@ static BOOL ios15 = YES;
         }
         
         if (bookmarkIcons.count > 0) {
-            NSUInteger index = indexPath.section % bookmarkIcons.count;
+            NSUInteger index = indexPath.item % bookmarkIcons.count;
             cellImage = bookmarkIcons[index];
         }
         
         dispatch_sync(dispatch_get_main_queue(), ^{
-            FLTableViewCell *cell = (FLTableViewCell *)[tableView cellForRowAtIndexPath:indexPath];
+            FXCollectionViewCell *cell = (FXCollectionViewCell *)[collectionView cellForItemAtIndexPath:indexPath];
             cell.imageView.image = cellImage;
-            SBBookmarkIcon *selectedIcon = self.icons[indexPath.section];
+            SBBookmarkIcon *selectedIcon = self.icons[indexPath.item];
             if ([selectedIcon isBookmarkIcon]) {
                 cell.imageView.layer.cornerRadius = cell.imageView.frame.size.width / 5;
                 cell.imageView.clipsToBounds = YES;
@@ -536,36 +549,26 @@ static BOOL ios15 = YES;
         });
     });
     
-    if (@available(iOS 14, *)) {
-        if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
-            cell.backgroundColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha: 0.4];
-        } else {
-            cell.backgroundColor = [UIColor colorWithRed:0.85 green:0.85 blue:0.85 alpha: 0.65];
-        }
-    } else {
-        cell.backgroundColor = [UIColor colorWithRed:0.85 green:0.85 blue:0.85 alpha: 0.65];
-    }
-    
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:kRWSettingsPath];
     if ([[prefs objectForKey:@"notificationBadgesEnabled"] boolValue]) {
         if (entry.application.badgeValue != nil) {
             if (!cell.badgeView) {
-                cell.badgeView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 20, 20)];
+                cell.badgeView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 17, 17)];
+                //            [cell setupBadgeView:@""];
                 cell.badgeView.layer.cornerRadius = cell.badgeView.frame.size.width / 2;
                 cell.badgeView.backgroundColor = [UIColor redColor];
-                [cell.contentView addSubview:cell.badgeView];
+                [collectionView addSubview:cell.badgeView];
             }
-            
-//            if (!cell.badgeTextLabel) {
-//                cell.badgeTextLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 17, 17)];
-//                [cell.badgeView addSubview:cell.badgeTextLabel];
-//            }
             
             cell.badgeTextLabel.text = [entry.application.badgeValue stringValue];
             [cell.badgeTextLabel sizeToFit];
             
-            CGRect cellRect = cell.frame;
+            UICollectionViewLayout *layout = collectionView.collectionViewLayout;
+            UICollectionViewLayoutAttributes *attributes = [layout layoutAttributesForItemAtIndexPath:indexPath];
+            
+            CGRect cellRect = attributes.frame;
             CGRect badgeRect = [cell.badgeView frame];
+            badgeRect.origin = [collectionView convertPoint:cellRect.origin fromView:collectionView.superview];
             badgeRect.origin.x = CGRectGetMaxX(cellRect) - badgeRect.size.width - 4;
             badgeRect.origin.y = cellRect.origin.y + (cellRect.size.height - badgeRect.size.height) / 6 - badgeRect.size.height / 2;
             [cell.badgeView setFrame:badgeRect];
@@ -596,15 +599,15 @@ static BOOL ios15 = YES;
 }
 
 //%new
-//-(void)handleSwipe:(UISwipeGestureRecognizer *)gestureRecognizer { // Uninstall Application | 0 - only delete / 1 - delete options
-//    CGPoint touchPoint = [gestureRecognizer locationInView:self.appListTableView];
-//    NSIndexPath *row = [self.appListTableView indexPathForRowAtPoint:touchPoint];
-//    if (row != nil) {
-//        SBApplication *application = [self.icons[row.section] application];
+//- (void)handleSwipe:(UISwipeGestureRecognizer *)gestureRecognizer {
+//    CGPoint touchPoint = [gestureRecognizer locationInView:self.collectionView];
+//    NSIndexPath *indexPath = [self.collectionView indexPathForItemAtPoint:touchPoint];
+//    if (indexPath != nil) {
+//        SBApplication *application = [self.icons[indexPath.item] application];
 //        if (application == nil)
 //            return;
 //        [[%c(SBApplicationController) sharedInstanceIfExists] requestUninstallApplicationWithBundleIdentifier:application.bundleIdentifier options:0 withCompletion:^{
-//            [self.appListTableView reloadData];
+//            [self.collectionView reloadData];
 //        }];
 //    }
 //}
@@ -630,28 +633,20 @@ static BOOL ios15 = YES;
         self.icons = [self.folder.icons sortedArrayUsingDescriptors:@[sortDescriptor]]; //Reverse alphavite sort
     }
     
-    self.appListTableView = [[UITableView alloc] initWithFrame:self.customListView.bounds];
-    self.appListTableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, self.appListTableView.bounds.size.width, 5)];
-    self.appListTableView.tableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, self.appListTableView.bounds.size.width, 15)];
-    self.appListTableView.backgroundColor = [UIColor clearColor];
-    self.appListTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-    self.appListTableView.delegate = self;
-    self.appListTableView.dataSource = self;
-    //self.appListTableView.layer.cornerRadius = 38;
-    self.appListTableView.sectionHeaderHeight = 1;
-    self.appListTableView.rowHeight = 52;
-
+    UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
+    layout.scrollDirection = UICollectionViewScrollDirectionVertical;
+    layout.itemSize = CGSizeMake(75, 75);
+    self.collectionView = [[UICollectionView alloc] initWithFrame:self.customListView.bounds collectionViewLayout:layout];
+    self.collectionView.delegate = self;
+    self.collectionView.dataSource = self;
+    self.collectionView.backgroundColor = [UIColor clearColor];
+    self.collectionView.delaysContentTouches = NO;
+    self.collectionView.scrollEnabled = YES;
+    
     SBFloatyFolderBackgroundClipView *folderBackgroundClipView = (SBFloatyFolderBackgroundClipView *) self.customListView.superview.superview;
     double cornerRadius = MSHookIvar<double>(folderBackgroundClipView.backgroundView, "_continuousCornerRadius");
-    self.appListTableView.layer.cornerRadius = cornerRadius;
-    self.appListTableView.scrollIndicatorInsets = UIEdgeInsetsMake(cornerRadius, 0, cornerRadius, 0);
-}
-
-%new
--(UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
-    UIView *view = [[UIView alloc] init];
-    [view setBackgroundColor:[UIColor clearColor]];
-    return view;
+    self.collectionView.layer.cornerRadius = cornerRadius;
+    self.collectionView.scrollIndicatorInsets = UIEdgeInsetsMake(cornerRadius, 0, cornerRadius, 0);
 }
 
 %end

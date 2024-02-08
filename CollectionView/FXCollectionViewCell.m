@@ -1,17 +1,22 @@
-#import "FLTableViewCell.h"
+#import "FXCollectionViewCell.h"
 #import <objc/runtime.h>
 
-@implementation FLTableViewCell
-- (void)setFrame:(CGRect)frame {
-    frame.origin.x += 25;
-    frame.size.width -= 2 * 25;
-    [super setFrame:frame];
-}
-
--(void)layoutIfNeeded {
-    [super layoutIfNeeded];
-    self.badgeView.center = CGPointMake(self.frame.size.width - 35, self.frame.size.height / 2);
-    self.badgeTextLabel.center = CGPointMake(self.badgeView.frame.size.width / 2, self.badgeView.frame.size.height / 2);
+@implementation FXCollectionViewCell
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.imageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, -5, frame.size.width, frame.size.height)];
+        [self.contentView addSubview:self.imageView];
+        
+        //add
+        self.textLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, frame.size.height - 15, frame.size.width, 20)];
+        self.textLabel.font = [UIFont boldSystemFontOfSize:9];
+        self.textLabel.textColor = [UIColor whiteColor]; //[UIColor labelColor];
+        self.textLabel.textAlignment = NSTextAlignmentCenter;
+        [self.contentView addSubview:self.textLabel];
+        //
+    }
+    return self;
 }
 
 - (void)setupBadgeView:(NSString *)badgeText {
@@ -36,7 +41,7 @@
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    self.imageView.bounds = CGRectMake(0,0,32,32);
+    self.imageView.bounds = CGRectMake(0, 0, 52, 52);
 }
 
 @end
