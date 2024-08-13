@@ -1,6 +1,6 @@
 # FolderList
 
-Update for iOS 14.x - 17.x
+Update for iOS 14.x - 18.x
 
 Supports palera1n, Dopamine, Serotonin
 
